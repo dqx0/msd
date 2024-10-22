@@ -4,100 +4,115 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
 	core "github.com/dqx0/msd/pkg/core"
 )
 
-// 指定されたディレクトリ内の.tracerファイルを全て読み取る関数
-func GetTracers(root string) ([]core.IParticle, error) {
-	var particles []core.IParticle
-
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if !info.IsDir() && strings.HasSuffix(info.Name(), ".tracer") {
-			fmt.Printf("Reading file: %s\n", path)
-
-			particle, err := ReadTracerFile(path)
-			if err != nil {
-				return err
-			}
-			particles = append(particles, particle)
-		}
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return particles, nil
+func GetTracers(root string) ([]core.IParticle, int, error) {
+	return getTracers(root)
 }
 
-// .tracerファイルの内容を読み取って表示する関数
-func ReadTracerFile(filePath string) (core.IParticle, error) {
+// readTracerFileHeader は.tracerファイルからパーティクル数を読み取ります
+func readTracerFileHeader(scanner *bufio.Scanner) (int, error) {
+	if !scanner.Scan() {
+		return 0, fmt.Errorf("failed to read header")
+	}
+	line := strings.TrimSpace(scanner.Text())
+	return strconv.Atoi(line)
+}
+
+// parseCoordinates は文字列から座標値を解析します
+func parseCoordinates(line string) (float64, float64, float64, error) {
+	parts := strings.Fields(line)
+	if len(parts) != 3 {
+		return 0, 0, 0, fmt.Errorf("invalid line format: %s", line)
+	}
+
+	x, err := strconv.ParseFloat(parts[0], 64)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("failed to parse x value: %v", err)
+	}
+	y, err := strconv.ParseFloat(parts[1], 64)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("failed to parse y value: %v", err)
+	}
+	z, err := strconv.ParseFloat(parts[2], 64)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("failed to parse z value: %v", err)
+	}
+
+	return x, y, z, nil
+}
+
+// readTracerFile は.tracerファイルの内容を読み取ります
+func readTracerFile(filePath string, particles []core.IParticle) ([]core.IParticle, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file %s: %v", filePath, err)
 	}
 	defer file.Close()
 
+	// バッファサイズを最適化
+	const bufferSize = 64 * 1024 // 64KB
 	scanner := bufio.NewScanner(file)
+	buf := make([]byte, bufferSize)
+	scanner.Buffer(buf, bufferSize)
 
-	// 1行目を読み取り、行数を取得
-	scanner.Scan()
-	line := scanner.Text()
-	numLines, err := strconv.Atoi(strings.TrimSpace(line))
+	// ヘッダーを読み取り
+	lineNum, err := readTracerFileHeader(scanner)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse number of lines: %v", err)
+		return nil, err
 	}
 
-	// x, y, zのスライスを作成
-	x := make([]float64, 0, numLines)
-	y := make([]float64, 0, numLines)
-	z := make([]float64, 0, numLines)
-
-	// 2行目以降を読み取り、x, y, zに格納
-	for scanner.Scan() {
-		line := scanner.Text()
-		parts := strings.Fields(line)
-
-		if len(parts) != 3 {
-			return nil, fmt.Errorf("invalid line format: %s", line)
+	// 初回のみパーティクルスライスを初期化
+	if particles == nil {
+		particles = make([]core.IParticle, lineNum)
+		for i := range particles {
+			particles[i] = &core.ParticlePath{}
 		}
+	}
 
-		// x, y, zの各値を取得して格納
-		xVal, err := strconv.ParseFloat(parts[0], 64)
+	// データ行を読み取り
+	index := 0
+	for scanner.Scan() && index < lineNum {
+		x, y, z, err := parseCoordinates(scanner.Text())
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse x value: %v", err)
+			return nil, err
 		}
-		yVal, err := strconv.ParseFloat(parts[1], 64)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse y value: %v", err)
-		}
-		zVal, err := strconv.ParseFloat(parts[2], 64)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse z value: %v", err)
-		}
-
-		x = append(x, xVal)
-		y = append(y, yVal)
-		z = append(z, zVal)
+		particles[index].Append(x, y, z)
+		index++
 	}
 
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("error reading file: %v", err)
 	}
-	particle := core.NewParticle()
-	particle.Append(core.ParticlePath{
-		X: x,
-		Y: y,
-		Z: z,
-	})
-	return particle, nil
+
+	return particles, nil
+}
+
+func getTracers(root string) ([]core.IParticle, int, error) {
+	var particles []core.IParticle
+	i := 0
+
+	// ファイル名のプレフィックスを事前に作成
+	const batchSize = 100
+	prefix := root + "\\"
+
+	for i = 1; ; i++ {
+		path := prefix + strconv.Itoa(i*batchSize) + ".tracers"
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			break
+		}
+
+		fmt.Printf("Reading tracers from %s\n", path)
+		var err error
+		particles, err = readTracerFile(path, particles)
+		if err != nil {
+			return nil, 0, err
+		}
+	}
+
+	return particles, (i - 1) * 100, nil
 }

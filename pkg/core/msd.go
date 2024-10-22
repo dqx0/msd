@@ -1,7 +1,8 @@
 package core
 
 type IParticle interface {
-	Append(particle ParticlePath)
+	AppendPath(particle ParticlePath)
+	Append(x, y, z float64)
 	GetMsd() <-chan Msd
 }
 
@@ -22,13 +23,19 @@ func NewParticle() IParticle {
 	}
 }
 
-func (p *ParticlePath) Append(particle ParticlePath) {
+func (p *ParticlePath) AppendPath(particle ParticlePath) {
 	p.X = append(p.X, particle.X...)
 	p.Y = append(p.Y, particle.Y...)
 	p.Z = append(p.Z, particle.Z...)
 }
 
-func calculateMSD(p *ParticlePath, t int) float64 {
+func (p *ParticlePath) Append(x, y, z float64) {
+	p.X = append(p.X, x)
+	p.Y = append(p.Y, y)
+	p.Z = append(p.Z, z)
+}
+
+func (p *ParticlePath) calculateMSD(t int) float64 {
 	n := len(p.X)
 	if t >= n {
 		return 0.0
@@ -47,7 +54,7 @@ func calculateMSD(p *ParticlePath, t int) float64 {
 			S_t += p.X[i]*p.X[i] + p.Y[i]*p.Y[i] + p.Z[i]*p.Z[i]
 		}
 		if i+t < n {
-			S_n_t += p.X[i+t]*p.X[i+t] + p.Y[i+t]*p.Y[i+t] + p.Z[i+t]*p.Z[i+t]
+			S_n_t += p.X[i]*p.X[i] + p.Y[i]*p.Y[i] + p.Z[i]*p.Z[i]
 			crossTerm += p.X[i]*p.X[i+t] + p.Y[i]*p.Y[i+t] + p.Z[i]*p.Z[i+t]
 		}
 	}
@@ -70,7 +77,7 @@ func (p *ParticlePath) GetMsd() <-chan Msd {
 		}
 		for t := 1; t <= n; t++ {
 			// 3次元空間でのMSDの計算
-			msdTotal := calculateMSD(p, t-1)
+			msdTotal := p.calculateMSD(t - 1)
 			// 時間ステップtとMSDをチャネルに送信
 			ch <- Msd{Time: t - 1, MSD: msdTotal}
 		}

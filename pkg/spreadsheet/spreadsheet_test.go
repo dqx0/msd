@@ -1,6 +1,7 @@
 package spreadsheet_test
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -9,9 +10,10 @@ import (
 )
 
 func TestFileService_Write(t *testing.T) {
+	ctx := context.Background()
 	os.Setenv("MSD_FOLDER_ID", "test_folder_id")
 
-	fileService, err := sheet.NewFileService("シート1")
+	fileService, err := sheet.NewFileService(ctx, "シート1", "シート1")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -22,20 +22,38 @@ type IFileService interface {
 	Write(values [][]interface{}) error
 }
 
-func NewFileService(sheetName string) (IFileService, error) {
-	ctx := context.Background()
+func NewFileService(ctx context.Context, spreadsheetName, sheetName string) (IFileService, error) {
+	// ドライブサービスの初期化
 	ds, err := NewDriveService(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create drive service: %v", err)
 	}
+
+	// シートサービスの初期化
 	ss, err := NewSheetService(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create sheet service: %v", err)
 	}
-	sheet, err := NewSheet(sheetName)
+
+	// スプレッドシートの作成
+	spreadsheet := &sheets.Spreadsheet{
+		Properties: &sheets.SpreadsheetProperties{
+			Title: spreadsheetName,
+		},
+		Sheets: []*sheets.Sheet{
+			{
+				Properties: &sheets.SheetProperties{
+					Title: sheetName, // シート（タブ）名を明示的に設定
+				},
+			},
+		},
+	}
+
+	sheet, err := ss.Spreadsheets.Create(spreadsheet).Do()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create spreadsheet: %v", err)
 	}
+
 	return &FileService{
 		Sheet:         sheet,
 		DriveService:  ds,
@@ -47,29 +65,34 @@ func (fs *FileService) Write(values [][]interface{}) error {
 	valueRange := &sheets.ValueRange{
 		Values: values,
 	}
-	writeRange := fmt.Sprintf("%s!A1", fs.Sheet.Properties.Title)
-	_, err := fs.SheetsService.Spreadsheets.Values.Update(fs.Sheet.SpreadsheetId, writeRange, valueRange).ValueInputOption("RAW").Do()
+	writeRange := fmt.Sprintf("%s!A1", fs.Sheet.Sheets[0].Properties.Title)
+
+	_, err := fs.SheetsService.Spreadsheets.Values.Update(
+		fs.Sheet.SpreadsheetId,
+		writeRange,
+		valueRange,
+	).ValueInputOption("RAW").Do()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update values: %v", err)
 	}
 
 	folderID := os.Getenv("MSD_FOLDER_ID")
 	if folderID == "" {
-		log.Fatalf("MSD_FOLDER_ID is not set")
+		return fmt.Errorf("MSD_FOLDER_ID is not set")
 	}
 
 	file := &drive.File{}
-
-	_, err = fs.DriveService.Files.Update(fs.Sheet.SpreadsheetId, file).
-		AddParents(folderID).
-		Fields("id, parents").
-		Do()
+	_, err = fs.DriveService.Files.Update(
+		fs.Sheet.SpreadsheetId,
+		file,
+	).AddParents(folderID).Fields("id, parents").Do()
 
 	if err != nil {
-		log.Fatalf("Unable to move file to folder after retries: %v", err)
+		return fmt.Errorf("failed to move file to folder: %v", err)
 	}
 
-	fmt.Printf("スプレッドシートURL: https://docs.google.com/spreadsheets/d/%s\n", fs.Sheet.SpreadsheetId)
+	fmt.Printf("スプレッドシート '%s' を作成しました\n", fs.Sheet.Properties.Title)
+	fmt.Printf("URL: https://docs.google.com/spreadsheets/d/%s\n", fs.Sheet.SpreadsheetId)
 
 	return nil
 }
@@ -119,26 +142,4 @@ func NewSheetService(ctx context.Context) (*sheets.Service, error) {
 
 	log.Printf("Successfully created sheets service")
 	return sheetsService, nil
-}
-
-func NewSheet(title string) (*sheets.Spreadsheet, error) {
-	ctx := context.Background()
-
-	sheetsService, err := NewSheetService(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	spreadsheet := &sheets.Spreadsheet{
-		Properties: &sheets.SpreadsheetProperties{
-			Title: title,
-		},
-	}
-
-	spreadsheet, err = sheetsService.Spreadsheets.Create(spreadsheet).Do()
-	if err != nil {
-		return nil, err
-	}
-
-	return spreadsheet, nil
 }
