@@ -64,18 +64,18 @@ func Create(particles []core.IParticle) [][]interface{} {
 	// スプレッドシート用のデータを作成
 	values := make([][]interface{}, particleIndex+2)
 	values[0] = []interface{}{"Time"}
+	values[0] = append(values[0], "Average")
 	for i := 0; i < particleIndex; i++ {
 		values[0] = append(values[0], "particle No."+strconv.Itoa(i+1))
 	}
-	values[0] = append(values[0], "Average")
 
 	for timeIndex := 0; timeIndex < len(result.Time); timeIndex++ {
 		row := make([]interface{}, 0, particleIndex+2)
 		row = append(row, result.Time[timeIndex]*100)
+		row = append(row, result.Average[timeIndex])
 		for i := 0; i < particleIndex; i++ {
 			row = append(row, result.MsdData[timeIndex].Msd[i])
 		}
-		row = append(row, result.Average[timeIndex])
 		values = append(values, row)
 	}
 
