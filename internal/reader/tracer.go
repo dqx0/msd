@@ -14,7 +14,6 @@ func GetTracers(root string) ([]core.IParticle, int, error) {
 	return getTracers(root)
 }
 
-// readTracerFileHeader は.tracerファイルからパーティクル数を読み取ります
 func readTracerFileHeader(scanner *bufio.Scanner) (int, error) {
 	if !scanner.Scan() {
 		return 0, fmt.Errorf("failed to read header")
@@ -23,7 +22,6 @@ func readTracerFileHeader(scanner *bufio.Scanner) (int, error) {
 	return strconv.Atoi(line)
 }
 
-// parseCoordinates は文字列から座標値を解析します
 func parseCoordinates(line string) (float64, float64, float64, error) {
 	parts := strings.Fields(line)
 	if len(parts) != 3 {
@@ -46,7 +44,6 @@ func parseCoordinates(line string) (float64, float64, float64, error) {
 	return x, y, z, nil
 }
 
-// readTracerFile は.tracerファイルの内容を読み取ります
 func readTracerFile(filePath string, particles []core.IParticle) ([]core.IParticle, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
