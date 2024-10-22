@@ -63,7 +63,6 @@ func (p *ParticlePath) calculateMSD(t int) float64 {
 	return MSD
 }
 
-// GetMsd は平均二乗変位を計算してチャネルに送信します
 func (p *ParticlePath) GetMsd() <-chan Msd {
 	ch := make(chan Msd)
 	go func() {
