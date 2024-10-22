@@ -1,4 +1,4 @@
-## MSD計算用CLI
+## MSD計算用App
 [core/msd.go](pkg/core/msd.go)
 ### 前提条件
 - GCP Google Drive API, Google Sheets API, ADC
