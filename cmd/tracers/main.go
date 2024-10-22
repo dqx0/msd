@@ -37,7 +37,7 @@ func main() {
 	// スプレッドシートの準備
 	ctx := context.Background()
 	sheetName := "nTrac=" + strconv.Itoa(len(particles)) + ", nStep=" + strconv.Itoa(nStep)
-	fileService, err := sheet.NewFileService(ctx, "MSD"+time.Now().Format("2006-01-02-15-04-05"), sheetName)
+	fileService, err := sheet.NewFileService(ctx, sheetName+" "+time.Now().Format("2006-01-02-15-04-05"), sheetName)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
