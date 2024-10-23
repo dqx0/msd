@@ -26,12 +26,14 @@ func main() {
 			os.Exit(1)
 		}
 	}
-	fmt.Println("Data path: ", *dataPath)
 	// 粒子の読み込み
 	particles, nStep, err := reader.GetTracers(*dataPath)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
+	}
+	for _, particle := range particles {
+		particle.CorrectBoundary()
 	}
 
 	// スプレッドシートの準備

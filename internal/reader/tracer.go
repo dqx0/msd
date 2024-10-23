@@ -3,6 +3,7 @@ package reader
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -97,13 +98,13 @@ func getTracers(root string) ([]core.IParticle, int, error) {
 	const batchSize = 100
 	prefix := root + "\\"
 
+	log.Printf("Reading tracers from %s", root)
 	for i = 1; ; i++ {
 		path := prefix + strconv.Itoa(i*batchSize) + ".tracers"
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			break
 		}
 
-		fmt.Printf("Reading tracers from %s\n", path)
 		var err error
 		particles, err = readTracerFile(path, particles)
 		if err != nil {

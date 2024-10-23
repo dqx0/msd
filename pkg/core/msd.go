@@ -4,6 +4,7 @@ type IParticle interface {
 	AppendPath(particle ParticlePath)
 	Append(x, y, z float64)
 	GetMsd() <-chan Msd
+	CorrectBoundary()
 }
 
 type ParticlePath struct {
