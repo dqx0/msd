@@ -4,6 +4,7 @@ type IParticle interface {
 	AppendPath(particle ParticlePath)
 	Append(x, y, z float64)
 	GetMsd() <-chan Msd
+	CorrectBoundary()
 }
 
 type ParticlePath struct {
@@ -41,11 +42,21 @@ func (p *ParticlePath) calculateMSD(t int) float64 {
 		return 0.0
 	}
 
-	var S_n float64 = 0
-	var S_t float64 = 0
-	var S_n_t float64 = 0
+	// https://qiita.com/Authns/items/def59166dfd49975e9ba
+	var sum1 float64 = 0 // Σx(i)² for i=1 to n-t
+	var sum2 float64 = 0 // Σx(i)² for i=t+1 to n
 	var crossTerm float64 = 0
 
+	for i := 0; i < n-t; i++ {
+		sum1 += p.X[i]*p.X[i] + p.Y[i]*p.Y[i] + p.Z[i]*p.Z[i]
+	}
+
+	for i := t; i < n; i++ {
+		sum2 += p.X[i]*p.X[i] + p.Y[i]*p.Y[i] + p.Z[i]*p.Z[i]
+	}
+
+	for i := 0; i < n-t; i++ {
+		crossTerm += p.X[i]*p.X[i+t] + p.Y[i]*p.Y[i+t] + p.Z[i]*p.Z[i+t]
 	// 2つの累積和と交差項の計算
 	// https://qiita.com/Authns/items/def59166dfd49975e9ba
 	for i := 0; i < n; i++ {
@@ -59,13 +70,11 @@ func (p *ParticlePath) calculateMSD(t int) float64 {
 		}
 	}
 
-	// MSDの計算
-	MSD := (S_n + S_n_t - S_t - 2*crossTerm) / float64(n-t)
+	MSD := (sum1 + sum2 - 2*crossTerm) / float64(n-t)
 
 	return MSD
 }
 
-// GetMsd は平均二乗変位を計算してチャネルに送信します
 func (p *ParticlePath) GetMsd() <-chan Msd {
 	ch := make(chan Msd)
 	go func() {
