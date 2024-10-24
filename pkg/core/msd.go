@@ -49,14 +49,11 @@ func (p *ParticlePath) calculateMSD(t int) float64 {
 
 	for i := 0; i < n-t; i++ {
 		sum1 += p.X[i]*p.X[i] + p.Y[i]*p.Y[i] + p.Z[i]*p.Z[i]
+		crossTerm += p.X[i]*p.X[i+t] + p.Y[i]*p.Y[i+t] + p.Z[i]*p.Z[i+t]
 	}
 
 	for i := t; i < n; i++ {
 		sum2 += p.X[i]*p.X[i] + p.Y[i]*p.Y[i] + p.Z[i]*p.Z[i]
-	}
-
-	for i := 0; i < n-t; i++ {
-		crossTerm += p.X[i]*p.X[i+t] + p.Y[i]*p.Y[i+t] + p.Z[i]*p.Z[i+t]
 	}
 
 	MSD := (sum1 + sum2 - 2*crossTerm) / float64(n-t)
