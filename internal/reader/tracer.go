@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -24,20 +25,22 @@ func readTracerFileHeader(scanner *bufio.Scanner) (int, error) {
 }
 
 func parseCoordinates(line string) (float64, float64, float64, error) {
-	parts := strings.Fields(line)
-	if len(parts) != 3 {
+	// 正規表現を使用して座標を抽出
+	re := regexp.MustCompile(`([-+]?\d*\.\d+|\d+)\s*([-+]?\d*\.\d+|\d+)\s*([-+]?\d*\.\d+|\d+)`)
+	matches := re.FindStringSubmatch(line)
+	if len(matches) != 4 {
 		return 0, 0, 0, fmt.Errorf("invalid line format: %s", line)
 	}
 
-	x, err := strconv.ParseFloat(parts[0], 64)
+	x, err := strconv.ParseFloat(matches[1], 64)
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("failed to parse x value: %v", err)
 	}
-	y, err := strconv.ParseFloat(parts[1], 64)
+	y, err := strconv.ParseFloat(matches[2], 64)
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("failed to parse y value: %v", err)
 	}
-	z, err := strconv.ParseFloat(parts[2], 64)
+	z, err := strconv.ParseFloat(matches[3], 64)
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("failed to parse z value: %v", err)
 	}

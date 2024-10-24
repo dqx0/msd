@@ -32,9 +32,9 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	for _, particle := range particles {
-		particle.CorrectBoundary()
-	}
+	// for _, particle := range particles {
+	// 	particle.CorrectBoundary()
+	// }
 
 	// スプレッドシートの準備
 	ctx := context.Background()
